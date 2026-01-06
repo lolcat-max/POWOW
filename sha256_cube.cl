@@ -1,6 +1,7 @@
 /* 
- * SHA-256 Cube Root PoW Kernel
- * Targets AMD GPUs (RDNA/GCN) using __int128 and __constant address space.
+ * SHA-256 Cube Root PoW Kernel (Full Version)
+ * Optimized for AMD RDNA/GCN GPUs. 
+ * Handles 64-bit Difficulty and 128-bit wrap-around Cube calculation.
  */
 
 #define ROTRIGHT(word, bits) (((word) >> (bits)) | ((word) << (32 - (bits))))
@@ -11,7 +12,7 @@
 #define SIG0(x) (ROTRIGHT(x, 7) ^ ROTRIGHT(x, 18) ^ ((x) >> 3))
 #define SIG1(x) (ROTRIGHT(x, 17) ^ ROTRIGHT(x, 19) ^ ((x) >> 10))
 
-// SHA-256 Constants in the required __constant address space
+// SHA-256 constants in __constant memory space
 __constant uint K[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -23,7 +24,7 @@ __constant uint K[64] = {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-// Compression function for a single 512-bit block
+// SHA-256 compression function
 void sha256_transform(uint state[8], const uchar data[64]) {
     uint a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
     for (i = 0, j = 0; i < 16; ++i, j += 4)
@@ -44,24 +45,25 @@ void sha256_transform(uint state[8], const uchar data[64]) {
     state[4] += e; state[5] += f; state[6] += g; state[7] += h;
 }
 
-// 128-bit Cube Calculation: (k * diff)^3 + 2040
-void calculate_nonce_128(unsigned long k, uint diff, uint result[4]) {
+// 128-bit arithmetic for nonce calculation
+void calculate_nonce_128(unsigned long k, unsigned long diff, uint result[4]) {
     unsigned __int128 X = (unsigned __int128)k * diff;
     unsigned __int128 X3 = (X * X * X) + 2040;
+    // Pack 128-bit result into 32-bit uint array (Big Endian logic)
     result[0] = (uint)(X3 >> 96);
     result[1] = (uint)(X3 >> 64);
     result[2] = (uint)(X3 >> 32);
     result[3] = (uint)(X3);
 }
 
-__kernel void mine_cube(__global uint* results, uint diff, uint target_zeros, unsigned long start_k) {
+__kernel void mine_cube(__global uint* results, unsigned long diff, uint target_zeros, unsigned long start_k) {
     uint gid = get_global_id(0);
     unsigned long k = start_k + gid;
     
     uint n_parts[4];
     calculate_nonce_128(k, diff, n_parts);
     
-    // Determine significant byte length of the nonce
+    // Determine dynamic byte length for hashing
     int nbytes = 16;
     if (n_parts[0] == 0) { 
         nbytes = 12; 
@@ -73,7 +75,7 @@ __kernel void mine_cube(__global uint* results, uint diff, uint target_zeros, un
 
     // FIRST PASS: SHA-256("HAHA" + Nonce)
     uchar block[64] = {0};
-    block[0] = 0x48; block[1] = 0x41; block[2] = 0x48; block[3] = 0x41; // "HAHA"
+    block[0] = 'H'; block[1] = 'A'; block[2] = 'H'; block[3] = 'A';
     
     for (int i = 0; i < nbytes; i++) {
         int p_idx = 3 - (i / 4);
@@ -102,7 +104,7 @@ __kernel void mine_cube(__global uint* results, uint diff, uint target_zeros, un
     uint st2[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
     sha256_transform(st2, block2);
 
-    // HEX Zero Counting (1 hex char = 4 bits)
+    // Hex Zero Counting
     uint zeros = 0;
     for (int i = 0; i < 8; i++) {
         if (st2[i] == 0) zeros += 8;
@@ -115,7 +117,7 @@ __kernel void mine_cube(__global uint* results, uint diff, uint target_zeros, un
         }
     }
 
-    // Capture findings
+    // Capture result if difficulty met
     if (zeros >= target_zeros) {
         uint slot = atomic_inc(&results[0]);
         if (slot < 10) {
