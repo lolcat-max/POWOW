@@ -41,11 +41,13 @@ def calculate_cube_nonce(difficulty: int, k: int) -> int:
 
 
 def hash_nonce_only(nonce: int) -> str:
-    nonce += 255
+    nonce += 2040
     # minimal number of bytes needed to represent nonce (at least 1)
     nbytes = max(1, (nonce.bit_length() + 7) // 8)
+    string = b"HAHA"
     nonce_bytes = nonce.to_bytes(nbytes, byteorder='big')
-    return hashlib.sha256(b"1"+nonce_bytes).hexdigest()
+
+    return string+nonce_bytes, hashlib.sha256(string+nonce_bytes).hexdigest()
 
 
 def verify_cube_nonce_pow(nonce: int, cube_difficulty: int, zero_difficulty: int) -> tuple[bool, str, int, str]:
@@ -65,7 +67,7 @@ def verify_cube_nonce_pow(nonce: int, cube_difficulty: int, zero_difficulty: int
         return False, "", 0, f"Cube root {cube_root} not divisible by {cube_difficulty}"
     
     # Check 2: Does HASH(nonce) have enough leading zeros?
-    hash_value = hash_nonce_only(nonce)
+    hash_value = _, hash_nonce_only(nonce)
     zeros = count_leading_zeros(hash_value)
     
     if zeros < zero_difficulty:
@@ -91,13 +93,12 @@ def show_precomputed_nonces():
     for k in range(1, 100000000):
         nonce = calculate_cube_nonce(630, k)
 
-            
-        hash_val = hash_nonce_only(nonce)
+        header, hash_val = hash_nonce_only(nonce)
         zeros = count_leading_zeros(hash_val)
         
         if zeros >= 6:
             cube_root = k * 10
-            print(f"{k:<8} {cube_root:<12,} {nonce:<20,} {hash_val:<66} {zeros}")
+            print(f"{k:<8} {cube_root:<12,} {nonce:<20,} {header} {hash_val:<66} {zeros}")
             found_count += 1
             
             if found_count >= 10:
