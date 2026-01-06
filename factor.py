@@ -41,10 +41,11 @@ def calculate_cube_nonce(difficulty: int, k: int) -> int:
 
 
 def hash_nonce_only(nonce: int) -> str:
+    nonce += 255
     # minimal number of bytes needed to represent nonce (at least 1)
     nbytes = max(1, (nonce.bit_length() + 7) // 8)
     nonce_bytes = nonce.to_bytes(nbytes, byteorder='big')
-    return hashlib.sha256(nonce_bytes).hexdigest()
+    return hashlib.sha256(b"1"+nonce_bytes).hexdigest()
 
 
 def verify_cube_nonce_pow(nonce: int, cube_difficulty: int, zero_difficulty: int) -> tuple[bool, str, int, str]:
