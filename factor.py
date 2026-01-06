@@ -78,7 +78,7 @@ def show_precomputed_nonces():
     """Show that you can precompute valid nonces"""
     
     print("\n" + "="*80)
-    print("PRE-COMPUTED VALID NONCES (can be reused for any block!)")
+    print("PRE-COMPUTED VALID NONCES")
     print("="*80)
     
     print("\nDifficulty: 10, Zero requirement: 1")
@@ -87,14 +87,14 @@ def show_precomputed_nonces():
     print("-" * 120)
     
     found_count = 0
-    for k in range(1, 1000000):
+    for k in range(1, 1000000000):
         nonce = calculate_cube_nonce(63, k)
 
             
         hash_val = hash_nonce_only(nonce)
         zeros = count_leading_zeros(hash_val)
         
-        if zeros >= 3:
+        if zeros >= 5:
             cube_root = k * 10
             print(f"{k:<8} {cube_root:<12,} {nonce:<20,} {hash_val:<66} {zeros}")
             found_count += 1
