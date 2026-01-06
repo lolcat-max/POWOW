@@ -87,14 +87,14 @@ def show_precomputed_nonces():
     print("-" * 120)
     
     found_count = 0
-    for k in range(100000000, 1000000000):
-        nonce = calculate_cube_nonce(6300, k)
+    for k in range(1, 100000000):
+        nonce = calculate_cube_nonce(630, k)
 
             
         hash_val = hash_nonce_only(nonce)
         zeros = count_leading_zeros(hash_val)
         
-        if zeros >= 8:
+        if zeros >= 6:
             cube_root = k * 10
             print(f"{k:<8} {cube_root:<12,} {nonce:<20,} {hash_val:<66} {zeros}")
             found_count += 1
